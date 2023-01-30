@@ -1,0 +1,63 @@
+---
+title: "Capstone"
+output: html_document
+date: "2023-01-29"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(ggthemes)
+library(devtools)
+library(tidyverse)
+library(urbnthemes)
+
+devtools::install_github("UrbanInstitute/urbnthemes")
+devtools::install_github("UrbanInstitute/urbnmapr")
+
+setwd("/Users/tomcooklin/Desktop/Capstone")
+```
+
+
+```{r, eval = FALSE}
+husa = read.csv("psam_husa.csv")
+husb = read.csv("psam_husb.csv")
+pusa = read.csv("psam_pusa.csv")
+pusb = read.csv("psam_pusb.csv")
+
+hus = rbind(husa, husb)
+pus = rbind(pusa, pusb)
+
+data = full_join(hus, pus)
+
+keep <- c("SERIALNO","REGION", "ST", "HINCP", "ADJINC", "WGTP", "PWGTP", "AGEP", "RAC1P", "RAC2P", "RACBLK", "RACWHT", "RELSHIPP", "SEX")
+subset = data[keep]
+
+write.csv(subset, file = "subset.csv")
+```
+
+```{r}
+d = read.csv("subset.csv")
+
+gini = read.csv("gini_index.csv")
+```
+
+```{r}
+states = urbnmapr::states
+
+states = rename(states, "State" = "state_name")
+
+gini_states = left_join(states, gini, by = "State")
+
+gini_states %>%
+  ggplot(aes(long, lat, group = group, fill = Gini.Index)) +
+  geom_polygon(color = "#ffffff", size = 0.1) +
+  coord_map(projection = "albers", lat0 = 39, lat1 = 45) +
+  labs(fill = "Gini Index") +
+  theme_void()
+```
+
+Zero indicates perfect equality and one indicates perfect inequality.
