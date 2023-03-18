@@ -1,6 +1,8 @@
 ---
 title: "Capstone"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 date: "2023-01-29"
 ---
 
@@ -9,14 +11,21 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+install.packages("ggthemes")
+install.packages("devtools")
+install.packages("tidyverse")
+
 library(dplyr)
 library(ggthemes)
 library(devtools)
 library(tidyverse)
-library(urbnthemes)
 
-devtools::install_github("UrbanInstitute/urbnthemes")
+devtools::install_github("hadley/devtools")
+
 devtools::install_github("UrbanInstitute/urbnmapr")
+
+library(urbnmapr)
+
 
 setwd("/Users/tomcooklin/Desktop/Capstone")
 ```
@@ -31,13 +40,28 @@ pusb = read.csv("psam_pusb.csv")
 hus = rbind(husa, husb)
 pus = rbind(pusa, pusb)
 
-data = full_join(hus, pus)
+data <- merge(pus, hus, by.x = "SERIALNO", 
+             by.y = "SERIALNO", all.x = TRUE, all.y = TRUE)
 
-keep <- c("SERIALNO","REGION", "ST", "HINCP", "ADJINC", "WGTP", "PWGTP", "AGEP", "RAC1P", "RAC2P", "RACBLK", "RACWHT", "RELSHIPP", "SEX")
+keep <- c("SERIALNO","REGION.x", "ST.x", "HINCP", "ADJINC.x", "WGTP", "PWGTP", "AGEP", "RAC1P", "RAC2P", "RACBLK", "RACWHT", "RELSHIPP", "SEX", "PINCP", "PUMA.x")
 subset = data[keep]
 
-write.csv(subset, file = "subset.csv")
+#data <- hus %>% 
+  #left_join(pus, by = "SERIALNO")
+
+subset$INCOME = (subset$ADJINC.x / 1000000) * subset$PINCP
+
+subset <- subset[!(subset$PINCP <= 0),]
+
+subset = subset %>% drop_na(PINCP)
+
+subset = subset[!is.na(subset$RAC1P),]
+
+write.csv(subset, file = "/Users/tomcooklin/Desktop/subset2.csv")
+
 ```
+
+## Mapping Gini Index
 
 ```{r}
 d = read.csv("subset.csv")
@@ -61,3 +85,55 @@ gini_states %>%
 ```
 
 Zero indicates perfect equality and one indicates perfect inequality.
+
+```{r}
+subset = read.csv("subset.csv")
+
+subset$INCOME = (subset$ADJINC.x / 1000000) * subset$PINCP
+
+subset <- subset[!(subset$PINCP <= 0),]
+
+subset = subset %>% drop_na(PINCP)
+```
+
+## Graphs
+
+```{r}
+subset = read.csv("/Users/tomcooklin/Desktop/subset.csv")
+
+subset$RAC1P = as.character(subset$RAC1P)
+
+table(subset$RAC1P)
+
+sum(is.na(subset$RAC1P))
+
+class(subset$RAC1P)
+
+ggplot(subset, aes(x = RAC1P)) +
+  geom_bar()
+```
+Merge to have race groups White, Black, Asian, Other
+
+```{r}
+subset = subset %>% mutate(RAC1P=recode(RAC1P, '1' = 'White', '2' = 'Black', '3' = 'Other', '4' = 'Other', '5' = 'Other', '7' = 'Other', '8' = 'Other', '9' = 'Other', '6' = 'Asian',))
+
+ggplot(subset, aes(x = RAC1P)) +
+  geom_bar()
+```
+
+```{r}
+boxplot(INCOME~RAC1P,
+data=subset,
+main="Different boxplots for race",
+ylim = c(0, 90000),
+xlab="RAC1P",
+ylab="Income",
+col="orange",
+border="brown"
+)
+```
+
+```{r}
+write.csv(subset, file = "/Users/tomcooklin/Desktop/subset.csv")
+```
+
