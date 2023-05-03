@@ -1,0 +1,95 @@
+---
+title: "Capstone"
+output:
+  pdf_document: default
+  html_document: default
+date: "2023-01-29"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages("ggthemes")
+install.packages("devtools")
+install.packages("tidyverse")
+
+library(dplyr)
+library(ggthemes)
+library(devtools)
+library(tidyverse)
+
+devtools::install_github("hadley/devtools")
+
+devtools::install_github("UrbanInstitute/urbnmapr")
+
+library(urbnmapr)
+
+```
+
+# Making Microdata 
+
+```{r, eval = FALSE}
+husa = read.csv("/Users/tomcooklin/Desktop/Capstone/psam_husa.csv")
+husb = read.csv("/Users/tomcooklin/Desktop/Capstone/psam_husb.csv")
+pusa = read.csv("/Users/tomcooklin/Desktop/Capstone/psam_pusa.csv")
+pusb = read.csv("/Users/tomcooklin/Desktop/Capstone/psam_pusb.csv")
+
+hus = rbind(husa, husb)
+pus = rbind(pusa, pusb)
+
+data <- merge(pus, hus, by.x = "SERIALNO", 
+             by.y = "SERIALNO", all.x = TRUE, all.y = TRUE)
+
+keep <- c("SERIALNO","REGION.x", "ST.x", "HINCP", "ADJINC.x", "WGTP", "PWGTP", "AGEP", "RAC1P", "RAC2P", "RACBLK", "RACWHT", "RELSHIPP", "SEX", "PINCP", "PUMA.x", "SCHL", "COW", "SOCP", "DIVISION.x", "REGION.x", "WAOB")
+subset = data[keep]
+
+#data <- hus %>% 
+  #left_join(pus, by = "SERIALNO")
+
+subset$INCOME = (subset$ADJINC.x / 1000000) * subset$PINCP
+
+subset <- subset[!(subset$PINCP <= 0),]
+
+subset = subset %>% drop_na(PINCP)
+
+subset = subset[!is.na(subset$RAC1P),]
+
+subset = subset %>% mutate(RAC1P=recode(RAC1P, '1' = 'White', '2' = 'Black', '3' = 'Other', '4' = 'Other', '5' = 'Other', '7' = 'Other', '8' = 'Other', '9' = 'Other', '6' = 'Asian',))
+
+write.csv(subset, file = "/Users/tomcooklin/Desktop/subset.csv")
+
+```
+
+## Mapping Gini Index
+
+```{r}
+d = read.csv("subset.csv")
+
+gini = read.csv("gini_index.csv")
+
+states = urbnmapr::states
+
+states = rename(states, "State" = "state_name")
+
+gini_states = left_join(states, gini, by = "State")
+
+gini_states %>%
+  ggplot(aes(long, lat, group = group, fill = Gini.Index)) +
+  geom_polygon(color = "#ffffff", size = 0.1) +
+  coord_map(projection = "albers", lat0 = 39, lat1 = 45) +
+  labs(fill = "Gini Index") +
+  theme_void()
+```
+
+#Taking random sample
+
+```{r}
+subset = read.csv("/Users/tomcooklin/Desktop/subset.csv")
+
+sample = subset[sample(nrow(subset), 100000), ]
+
+write.csv(sample, file = "/Users/tomcooklin/Desktop/sample.csv")
+```
+
